@@ -18,8 +18,10 @@ endif()
 
 add_subdirectory(ggml)
 
-# sam3 static library
-add_library(sam3 STATIC sam3.cpp sam3.h)
+# sam3 shard library
+add_library(sam3 SHARED sam3.cpp sam3.h)   
+set_target_properties(sam3 PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 target_include_directories(sam3 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/stb

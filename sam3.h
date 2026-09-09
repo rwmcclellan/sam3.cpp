@@ -180,18 +180,127 @@ struct sam3_video_info {
 /*
 ** Load a SAM3 model from the file specified in params.model_path.
 ** Returns nullptr on failure.
-*/
+
 std::shared_ptr<sam3_model> sam3_load_model(const sam3_params & params);
 
-/* Free all resources held by a loaded model. */
+// Free all resources held by a loaded model. 
 void sam3_free_model(sam3_model & model);
+*/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef _WIN32
+#define SAM3_API __declspec(dllexport)
+#else
+#define SAM3_API __attribute__((visibility("default")))
+#endif
+
+    // Opaque handle that C# will treat as IntPtr
+    typedef struct sam3_context sam3_context;
+    typedef struct sam3_state_context sam3_state_context;
+
+    // The ONLY functions that C# will see
+    SAM3_API sam3_context* sam3_load_model_c(const char* path_model);
+    SAM3_API void          sam3_free_model_c(sam3_context* ctx);
+
+    SAM3_API sam3_state_context* sam3_create_state_c(sam3_context* model_ctx);
+    SAM3_API void                sam3_free_state_c(sam3_state_context* state_ctx);
+
+    // ----- Encode from memory buffer -----
+    // pixels must be tightly packed RGB (channels=3) or RGBA (channels=4)
+    // Returns true on success
+    SAM3_API bool sam3_encode_image_from_buffer_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const uint8_t* pixels,
+        int                 width,
+        int                 height,
+        int                 channels);
+
+    // Simple point / box types that C# can marshal easily
+    typedef struct {
+        float x;
+        float y;
+    } sam3_c_point;
+
+    typedef struct {
+        float x0, y0;   // top-left
+        float x1, y1;   // bottom-right
+    } sam3_c_box;
+
+    // Opaque result handle
+    typedef struct sam3_result_context sam3_result_context;
+
+    // Run point/box segmentation (SAM2-style)
+    // pos_points / neg_points can be NULL if count == 0
+    // box can be NULL if you only use points
+    SAM3_API sam3_result_context* sam3_segment_pvs_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const sam3_c_point* pos_points,
+        int                 num_pos_points,
+        const sam3_c_point* neg_points,
+        int                 num_neg_points,
+        const sam3_c_box* box,            // optional, pass NULL if not used
+        bool                multimask);
+
+    // Free the result
+    SAM3_API void sam3_free_result_c(sam3_result_context* result_ctx);
+
+    // Result inspection
+    SAM3_API int  sam3_result_num_detections(const sam3_result_context* result_ctx);
+
+    // Get mask of detection i (binary 0/255, tightly packed)
+    // Returns pointer that stays valid until free_result is called.
+    // width/height are written out.
+    SAM3_API const uint8_t* sam3_result_mask(
+        const sam3_result_context* result_ctx,
+        int                        index,
+        int* out_width,
+        int* out_height);
+
+    // Optional extras
+    SAM3_API float sam3_result_score(const sam3_result_context* result_ctx, int index);
+    SAM3_API float sam3_result_iou(const sam3_result_context* result_ctx, int index);
+
+    // Text-prompted concept segmentation (SAM 3 only) - text only
+    SAM3_API sam3_result_context* sam3_segment_pcs_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const char* text_prompt,
+        float               score_threshold,   // e.g. 0.5f
+        float               nms_threshold);    // e.g. 0.1f
+
+    // Text-prompted concept segmentation (SAM 3 only) - text only
+    SAM3_API sam3_result_context* sam3_segment_pcs_ext_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const char* text_prompt,
+        const sam3_c_box* pos_boxes,
+        int                 num_pos_boxes,
+        const sam3_c_box* neg_boxes,
+        int                 num_neg_boxes,
+        float               score_threshold,
+        float               nms_threshold);
+
+    SAM3_API bool sam3_result_box(
+        const sam3_result_context* result_ctx,
+        int                        index,
+        float* x0, float* y0,
+        float* x1, float* y1);
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Returns true if the model was loaded as visual-only (no text/detector path).
 ** SAM2 models are always considered visual-only. */
-bool sam3_is_visual_only(const sam3_model & model);
+bool sam3_is_visual_only(const sam3_model& model);
 
 /* Returns the model type (SAM2 or SAM3). */
-sam3_model_type sam3_get_model_type(const sam3_model & model);
+sam3_model_type sam3_get_model_type(const sam3_model& model);
 
 /*
 ** ── Inference State ──────────────────────────────────────────────────────

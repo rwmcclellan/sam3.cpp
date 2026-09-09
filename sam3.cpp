@@ -14437,3 +14437,292 @@ bool sam3_dump_model_tensor(const sam3_model & model,
     }
     return sam3_dump_tensor_to_path(it->second, tensor_name, output_path);
 }
+
+/*****************************************************************************
+** C# Wrapper
+*****************************************************************************/
+
+struct sam3_context {
+    std::shared_ptr<sam3_model> model;
+    sam3_params                 params;
+};
+
+struct sam3_state_context {
+    sam3_state_ptr state;   // the real unique_ptr from the library
+};
+
+struct sam3_result_context {
+    sam3_result result;   // owns the detections + masks
+};
+
+
+
+extern "C" {
+
+    SAM3_API sam3_context* sam3_load_model_c(const char* path_model)
+    {
+        try {
+            sam3_params params;
+            // fill params from the path (or however your original function expects it)
+            params.model_path = path_model;   // adjust to your real field name
+
+            auto model = sam3_load_model(params);   // call the real C++ function
+            if (!model)
+                return nullptr;
+
+            auto* ctx = new sam3_context;
+            ctx->model = std::move(model);
+            return ctx;
+        }
+        catch (...) {
+            return nullptr;
+        }
+    }
+
+    SAM3_API void sam3_free_model_c(sam3_context* ctx)
+    {
+        delete ctx;   // shared_ptr destructor cleans up the model
+    }
+
+    SAM3_API sam3_state_context* sam3_create_state_c(sam3_context* model_ctx)
+    {
+        if (!model_ctx || !model_ctx->model)
+            return nullptr;
+
+        try {
+            // Call the real C++ function from sam3.h
+            auto state = ::sam3_create_state(*model_ctx->model, model_ctx->params);
+            if (!state)
+                return nullptr;
+
+            auto* ctx = new sam3_state_context;
+            ctx->state = std::move(state);
+            return ctx;
+        }
+        catch (...) {
+            return nullptr;
+        }
+    }
+
+    SAM3_API void sam3_free_state_c(sam3_state_context* state_ctx)
+    {
+        delete state_ctx;   // unique_ptr + custom deleter clean everything up
+    }
+
+    SAM3_API bool sam3_encode_image_from_buffer_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const uint8_t* pixels,
+        int                 width,
+        int                 height,
+        int                 channels)
+    {
+        if (!state_ctx || !model_ctx || !model_ctx->model || !pixels)
+            return false;
+        if (width <= 0 || height <= 0)
+            return false;
+        if (channels != 3 && channels != 4)
+            return false;
+
+        try {
+            sam3_image image;
+            image.width = width;
+            image.height = height;
+            image.channels = channels;
+
+            const size_t nbytes = static_cast<size_t>(width) * height * channels;
+            image.data.assign(pixels, pixels + nbytes);
+
+            return sam3_encode_image(
+                *state_ctx->state,
+                *model_ctx->model,
+                image);
+        }
+        catch (...) {
+            return false;
+        }
+    }
+
+    SAM3_API sam3_result_context* sam3_segment_pvs_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const sam3_c_point* pos_points,
+        int                 num_pos_points,
+        const sam3_c_point* neg_points,
+        int                 num_neg_points,
+        const sam3_c_box* box,
+        bool                multimask)
+    {
+        if (!state_ctx || !model_ctx || !model_ctx->model)
+            return nullptr;
+
+        try {
+            sam3_pvs_params pvs;
+            pvs.multimask = multimask;
+
+            if (pos_points && num_pos_points > 0) {
+                pvs.pos_points.reserve(num_pos_points);
+                for (int i = 0; i < num_pos_points; ++i)
+                    pvs.pos_points.push_back({ pos_points[i].x, pos_points[i].y });
+            }
+
+            if (neg_points && num_neg_points > 0) {
+                pvs.neg_points.reserve(num_neg_points);
+                for (int i = 0; i < num_neg_points; ++i)
+                    pvs.neg_points.push_back({ neg_points[i].x, neg_points[i].y });
+            }
+
+            if (box) {
+                pvs.box = { box->x0, box->y0, box->x1, box->y1 };
+                pvs.use_box = true;
+            }
+
+            auto result = sam3_segment_pvs(
+                *state_ctx->state,
+                *model_ctx->model,
+                pvs);
+
+            auto* ctx = new sam3_result_context;
+            ctx->result = std::move(result);
+            return ctx;
+        }
+        catch (...) {
+            return nullptr;
+        }
+    }
+
+    SAM3_API void sam3_free_result_c(sam3_result_context* result_ctx)
+    {
+        delete result_ctx;
+    }
+
+    SAM3_API int sam3_result_num_detections(const sam3_result_context* result_ctx)
+    {
+        return result_ctx ? static_cast<int>(result_ctx->result.detections.size()) : 0;
+    }
+
+    SAM3_API const uint8_t* sam3_result_mask(
+        const sam3_result_context* result_ctx,
+        int                        index,
+        int* out_width,
+        int* out_height)
+    {
+        if (!result_ctx || index < 0 ||
+            index >= static_cast<int>(result_ctx->result.detections.size()))
+            return nullptr;
+
+        const auto& mask = result_ctx->result.detections[index].mask;
+        if (out_width)  *out_width = mask.width;
+        if (out_height) *out_height = mask.height;
+        return mask.data.empty() ? nullptr : mask.data.data();
+    }
+
+    SAM3_API float sam3_result_score(const sam3_result_context* result_ctx, int index)
+    {
+        if (!result_ctx || index < 0 ||
+            index >= static_cast<int>(result_ctx->result.detections.size()))
+            return 0.0f;
+        return result_ctx->result.detections[index].score;
+    }
+
+    SAM3_API float sam3_result_iou(const sam3_result_context* result_ctx, int index)
+    {
+        if (!result_ctx || index < 0 ||
+            index >= static_cast<int>(result_ctx->result.detections.size()))
+            return 0.0f;
+        return result_ctx->result.detections[index].iou_score;
+    }
+
+    SAM3_API sam3_result_context* sam3_segment_pcs_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const char* text_prompt,
+        float               score_threshold,
+        float               nms_threshold)
+    {
+        if (!state_ctx || !model_ctx || !model_ctx->model || !text_prompt)
+            return nullptr;
+
+        try {
+            sam3_pcs_params pcs;
+            pcs.text_prompt = text_prompt;
+            pcs.score_threshold = score_threshold;
+            pcs.nms_threshold = nms_threshold;
+
+            auto result = sam3_segment_pcs(
+                *state_ctx->state,
+                *model_ctx->model,
+                pcs);
+
+            auto* ctx = new sam3_result_context;
+            ctx->result = std::move(result);
+            return ctx;
+        }
+        catch (...) {
+            return nullptr;
+        }
+    }
+
+    SAM3_API sam3_result_context* sam3_segment_pcs_ext_c(
+        sam3_state_context* state_ctx,
+        sam3_context* model_ctx,
+        const char* text_prompt,
+        const sam3_c_box* pos_boxes,      // can be NULL
+        int                 num_pos_boxes,
+        const sam3_c_box* neg_boxes,      // can be NULL
+        int                 num_neg_boxes,
+        float               score_threshold,
+        float               nms_threshold)
+    {
+        if (!state_ctx || !model_ctx || !model_ctx->model || !text_prompt)
+            return nullptr;
+
+        try {
+            sam3_pcs_params pcs;
+            pcs.text_prompt = text_prompt;
+            pcs.score_threshold = score_threshold;
+            pcs.nms_threshold = nms_threshold;
+
+            for (int i = 0; i < num_pos_boxes; ++i)
+                pcs.pos_exemplars.push_back({ pos_boxes[i].x0, pos_boxes[i].y0,
+                                     pos_boxes[i].x1, pos_boxes[i].y1 });
+
+            for (int i = 0; i < num_neg_boxes; ++i)
+                pcs.neg_exemplars.push_back({ neg_boxes[i].x0, neg_boxes[i].y0,
+                                     neg_boxes[i].x1, neg_boxes[i].y1 });
+
+            auto result = sam3_segment_pcs(
+                *state_ctx->state,
+                *model_ctx->model,
+                pcs);
+
+            auto* ctx = new sam3_result_context;
+            ctx->result = std::move(result);
+            return ctx;
+        }
+        catch (...) {
+            return nullptr;
+        }
+    }
+
+
+    SAM3_API bool sam3_result_box(
+        const sam3_result_context* result_ctx,
+        int                        index,
+        float* x0, float* y0,
+        float* x1, float* y1)
+    {
+        if (!result_ctx || index < 0 ||
+            index >= (int)result_ctx->result.detections.size())
+            return false;
+
+        const auto& b = result_ctx->result.detections[index].box;
+        if (x0) *x0 = b.x0;
+        if (y0) *y0 = b.y0;
+        if (x1) *x1 = b.x1;
+        if (y1) *y1 = b.y1;
+        return true;
+    }
+
+} // extern "C"
+
