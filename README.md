@@ -8,7 +8,9 @@ sam3.h
 sam3.cpp  
 CMakeLists.txt  
 
-To avoid name-mangling issues, "_c" was added to names of functions.   Usage can be found in soon to appear companion C# repository that deploys the wrapper.
+To avoid name-mangling issues, "_c" was added to names of functions.   
+
+Usage can be found in companion C# repository:  https://github.com/rwmcclellan/SamImageSharp  
 
 To compile,  use the following from an empty build folder:
 
