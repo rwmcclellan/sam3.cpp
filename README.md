@@ -1,3 +1,24 @@
+# C wrapper for sam3.cpp intended for .Net
+
+This wrapper is limited to supporting Sam2 and Sam3 image operations for .Net.   It does not support video or other features not related to the Sam functions for images.
+
+Three files were edited to support the wrapper.  They are:
+
+sam3.h  
+sam3.cpp  
+CMakeLists.txt  
+
+To avoid name-mangling issues, "_c" was added to names of functions.   Usage can be found in soon to appear companion C# repository that deploys the wrapper.
+
+To compile,  use the following from an empty build folder:
+
+cmake .. -DBUILD_SHARED_LIBS=ON  
+cmake --build . --config Release --target sam3
+
+This will provide 4 dlls,  Sam3.dll in the release folder and the ggml dlls in the bin\release folder
+
+Thanks to Pierre-Antoine Bannier for his awesome project!
+
 # sam3.cpp
 
 State-of-the-art image and video segmentation in portable C/C++
