@@ -10,7 +10,7 @@ CMakeLists.txt
 
 To avoid name-mangling issues, "_c" was added to names of functions.   
 
-Usage can be found in companion C# repository:  https://github.com/rwmcclellan/SamImageSharp  
+Usage can be found in companion C# repository:  coming soon
 
 To compile,  use the following from an empty build folder:
 
