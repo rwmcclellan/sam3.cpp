@@ -1,5 +1,7 @@
 # sam3.cpp
 
+Fork of PABannier/sam3.cpp with Windows shared-library build focus.  See branch "SharedDLLForDotNet"
+
 State-of-the-art image and video segmentation in portable C/C++
 
 ![SAM3 Image Segmentation Demo](media/image_demo.gif)
