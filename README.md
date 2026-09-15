@@ -27,10 +27,9 @@ Thanks to Pierre-Antoine Bannier for his awesome project!
 MIT – see LICENSE
 
 ## Third-Party Components
-See [THIRD_PARTY.md](THIRD_PARTY.md) for licenses and attributions of included libraries.
-
 [Meta Sam3 License](https://sam3ai.com/license/) - Meta Sam3 Model Weights  
 [Meta Sam2 License](https://github.com/facebookresearch/sam2) - Meta Sam2 Model Weights - Licensed under the Apache License, Version 2.0  
+ — MIT, Georgi Gerganov / ggml.ai (via PABannier's fork)
 
 # sam3.cpp
 
