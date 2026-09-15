@@ -23,6 +23,14 @@ This will provide 4 dlls,  Sam3.dll in the release folder and the ggml dlls in t
 
 Thanks to Pierre-Antoine Bannier for his awesome project!
 
+## License
+MIT – see LICENSE
+
+## Incorporated components license information
+
+[Meta Sam3 License](https://sam3ai.com/license/) - Meta Sam3 Model Weights  
+[Meta Sam2 License](https://github.com/facebookresearch/sam2) - Meta Sam2 Model Weights - Licensed under the Apache License, Version 2.0  
+
 # sam3.cpp
 
 State-of-the-art image and video segmentation in portable C/C++
