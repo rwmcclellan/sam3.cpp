@@ -1,5 +1,7 @@
 # C wrapper for sam3.cpp intended for .Net
 
+Fork of PABannier/sam3.cpp with Windows shared-library build focus
+
 This wrapper is limited to supporting Sam2 and Sam3 image operations for .Net.   It does not support video or other features not related to the Sam functions for images.
 
 Three files were edited to support the wrapper.  They are:
